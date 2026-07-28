@@ -1,0 +1,11 @@
+[SECTION 1: DATA RETENTION & SECURITY]
+Company data must never be uploaded to third-party public AI models. All internal proprietary benchmarks, client financials, and intellectual property must remain localized within the secure virtual network. Any manual transmission of personally identifiable information (PII) to an unvetted vendor is strictly classified as a RESTRICTED violation under security code 404.
+
+[SECTION 2: OPEN SOURCE AND THIRD-PARTY LICENSING]
+Developers are permitted to utilize MIT and Apache 2.0 licensed software dependencies inside codebase structures without prior approval. This operational procedure is fully COMPLIANT with company software standards. However, the integration of copyleft GPL or AGPL libraries poses a significant legal liability risk regarding code exposure. Using GPL code is classified as RISKY and requires explicit written authorization from the Engineering Architecture Review Board.
+
+[SECTION 3: CLIENT DISCLOSURES AND PRIVACY]
+Before initializing any data engineering pipelines on external client platforms, explicit multi-factor data disclosure forms must be submitted and approved. Processing production data within an unapproved cloud container sandbox environment is strictly RESTRICTED. 
+
+[SECTION 4: GENERATIVE AI CODE QUALITY PROTOCOLS]
+Using localized AI models to generate code documentation, write inline comments, or draft routine unit tests is acceptable and COMPLIANT. Engineers must manually peer-review all machine-generated logical statements. Pushing unreviewed synthetic machine code directly to the deployment branch bypasses standard quality assurance and is deemed a RISKY engineering practice.

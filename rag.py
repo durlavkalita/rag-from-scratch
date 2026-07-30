@@ -1,12 +1,21 @@
-from typing import List, Dict, Tuple
 import re
+
 import numpy as np
 
-class RAG():
+
+class RAG:
+    """
+    Implement a Retrieval-Augmented Generation system from scratch:
+
+    - Parse and chunk the policy document into overlapping text chunks
+    - Build a TF-IDF vocabulary matrix using numpy — no sklearn
+    - Implement cosine similarity search using numpy to retrieve the top-K most relevant chunks for a query
+    - Store chunks and their TF-IDF vectors in memory (your "vector store")
+    """
     def __init__(self, filepath:str = "policy.txt"):
         self.filepath = filepath
-        self.chunks: List[str] = []
-        self.vocab_list: List[str] = []
+        self.chunks: list[str] = []
+        self.vocab_list: list[str] = []
 
         # tf-idf assets
         self.idf_vector: np.ndarray = np.array([])
@@ -18,7 +27,9 @@ class RAG():
         self.chunk_lengths: np.ndarray = np.array([])
         self.avg_chunk_length: float = 0.0
 
-    def create_chunks(self, chunk_size: int = 50, overlap: int = 10) -> List[str]:
+        self.fit()
+
+    def create_chunks(self, chunk_size: int = 50, overlap: int = 10) -> list[str]:
         """
         Create chunks list from the provided document.
         """
@@ -30,7 +41,7 @@ class RAG():
         
         words = [word for word in re.split(r'\s+', data) if word]
 
-        chunks: List[str] = []
+        chunks: list[str] = []
         
         for i in range(0, len(words), chunk_size-overlap):
             chunk_words = words[i:i+chunk_size]
@@ -40,7 +51,7 @@ class RAG():
         self.chunks = chunks
         return chunks
     
-    def create_vocab(self) -> List[str]:
+    def create_vocab(self) -> list[str]:
         """
         Create vocabulary across all chunks. In each chunks the number of unique elements may vary. Applying cosine similarity later this vocab will be used. for every chunk tf vector will be same length with absent word having 0.0 as value 
         """
@@ -49,7 +60,7 @@ class RAG():
             words = [w.lower() for w in re.split(r'\s+', chunk) if w]
             vocab_set.update(words)
 
-        self.vocab_list = sorted(list(vocab_set))
+        self.vocab_list = sorted(vocab_set)
         return self.vocab_list
   
     def create_tf_idf_matrix(self):
@@ -57,12 +68,12 @@ class RAG():
         Create tf(term-frequency) vector - for each chunk, count how often each word appears ÷ total words in chunk
         Create idf(inverse document frequency) vector - log(total_chunks / chunks_containing_term) — penalises common words
         """
-        tokenized_chunks: List[List[str]] = []
+        tokenized_chunks: list[list[str]] = []
         for chunk in self.chunks:
             words = [w.lower() for w in re.split(r'\s+', chunk) if w]
             tokenized_chunks.append(words)
 
-        tf_matrix_list: List[List[float]] = []
+        tf_matrix_list: list[list[float]] = []
         for words in tokenized_chunks:
             total_words_in_chunk = len(words)
 
@@ -71,11 +82,11 @@ class RAG():
                 tf_matrix_list.append(current_chunk_tf)
                 continue
 
-            local_counts: Dict[str,int] = {}
+            local_counts: dict[str,int] = {}
             for word in words:
                 local_counts[word] = local_counts.get(word, 0) + 1
 
-            current_chunk_tf: List[float] = []
+            current_chunk_tf: list[float] = []
             for vocab_word in self.vocab_list:
                 word_count = local_counts.get(vocab_word, 0)
                 current_chunk_tf.append(word_count/total_words_in_chunk)
@@ -97,8 +108,8 @@ class RAG():
         to avoid processing the chunks multiple times.
         bm25 = idf*((raw_tf*(term_freq_saturation_param+1))/raw_tf + term_freq_saturation_param*(1-length normalization param+b*length of current chunk/avg chunk length across entire dataset)
         """
-        tokenized_chunks: List[List[str]] = []
-        chunk_lengths_list: List[int] = []
+        tokenized_chunks: list[list[str]] = []
+        chunk_lengths_list: list[int] = []
 
         for chunk in self.chunks:
             words = [w.lower() for w in re.split(r'\s+', chunk) if w]
@@ -109,9 +120,9 @@ class RAG():
         self.avg_chunk_length = float(np.mean(self.chunk_lengths)) if len(self.chunk_lengths) > 0 else 1.0
 
         # build raw freq matrix (rows = chunks, cols = vocab words)
-        raw_tf_list: List[List[float]] = []
+        raw_tf_list: list[list[float]] = []
         for words in tokenized_chunks:
-            local_counts: Dict[str, int] = {}
+            local_counts: dict[str, int] = {}
             for word in words:
                 local_counts[word] = local_counts.get(word,0)+1
             current_chunk_counts = [float(local_counts.get(vocab_word, 0)) for vocab_word in self.vocab_list]
@@ -144,11 +155,11 @@ class RAG():
         if total_words == 0:
             return np.zeros(len(self.vocab_list), dtype=np.float64)
         
-        query_counts: Dict[str, int] = {}
+        query_counts: dict[str, int] = {}
         for word in query_words:
             query_counts[word] = query_counts.get(word, 0) + 1
 
-        query_tf: List[float] = []
+        query_tf: list[float] = []
         for vocab_word in self.vocab_list:
             word_count = query_counts.get(vocab_word, 0)
             query_tf.append(word_count / total_words)
@@ -182,14 +193,14 @@ class RAG():
         
         return [(int(idx), float(similarities[idx])) for idx in ranked_indices[:top_k]]
     
-    def search_tfidf(self, query: str, top_k: int = 3) -> List[Tuple[int, float]]:
+    def search_tfidf(self, query: str, top_k: int = 3) -> list[tuple[int, float]]:
         query_words = [word.lower() for word in re.split(r'\s+', query) if word]
         total_words = len(query_words)
 
         if total_words == 0:
             return [(i, 0.0) for i in range(min(top_k, len(self.chunks)))]
         
-        query_counts: Dict[str, int] = {}
+        query_counts: dict[str, int] = {}
         for word in query_words:
             query_counts[word] = query_counts.get(word, 0) + 1
 
@@ -209,7 +220,7 @@ class RAG():
         
         return [(int(idx), float(similarities[idx])) for idx in ranked_indices[:top_k]]
 
-    def search_bm25(self, query: str, top_k: int = 3, k1: float = 1.5, b: float = 0.75) -> List[Tuple[int, float]]:
+    def search_bm25(self, query: str, top_k: int = 3, k1: float = 1.5, b: float = 0.75) -> list[tuple[int, float]]:
         """
         Computes scores using the BM25 probabilistic relevance algorithm.
         """
@@ -244,50 +255,8 @@ class RAG():
         ranked_indices = np.argsort(bm25_scores)[::-1]
         return [(int(idx), float(bm25_scores[idx])) for idx in ranked_indices[:top_k]]
 
-    # def fit(self, chunk_size: int = 50, overlap: int = 10):
-    #     """
-    #     High-level orchestration method initializing total pipeline state indexing.
-    #     """
-    #     self.create_chunks(chunk_size, overlap)
-    #     self.create_vocab()
-    #     self.create_tf_idf_matrix()
-
     def fit(self, chunk_size: int = 50, overlap: int = 10):
         self.create_chunks(chunk_size, overlap)
         self.create_vocab()
         self.build_matrices()
-
-if __name__ == '__main__':
-    # rag = RAG()
-    # rag.fit()
-
-    # query = "GENERATIVE AI CODE QUALITY PROTOCOLS"
-    # results = rag.search(query, top_k=3)
-
-    # print(f"=== Search Results for: '{query}' ===\n")
-    
-    # # Iterate through the returned tuples of (chunk_index, relevance_score)
-    # for rank, (idx, score) in enumerate(results, start=1):
-    #     # Extract the string snippet from our memory store using the index integer
-    #     matched_text = rag.chunks[idx]
-        
-    #     print(f"Result Rank #{rank}")
-    #     print(f"Chunk Index: {idx} | Cosine Similarity Score: {score:.4f}")
-    #     print(f"Excerpt: \"{matched_text}\"")
-    #     print("-" * 50)
-
-    rag = RAG("policy.txt")
-    rag.fit(chunk_size=15, overlap=2)
-
-    query = "GENERATIVE AI CODE QUALITY PROTOCOLS"
-    
-    print(f"=== Comparing Algorithms for: '{query}' ===\n")
-    
-    print("--- TF-IDF (Cosine Similarity) Results ---")
-    for rank, (idx, score) in enumerate(rag.search_tfidf(query, top_k=2), 1):
-        print(f"#{rank} | Chunk {idx} | Score: {score:.4f} | Excerpt: \"{rag.chunks[idx][:70]}...\"")
-        
-    print("\n--- BM25 Scores Results ---")
-    for rank, (idx, score) in enumerate(rag.search_bm25(query, top_k=2), 1):
-        print(f"#{rank} | Chunk {idx} | Score: {score:.4f} | Excerpt: \"{rag.chunks[idx][:70]}...\"")
         

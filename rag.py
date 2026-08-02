@@ -62,45 +62,6 @@ class RAG:
 
         self.vocab_list = sorted(vocab_set)
         return self.vocab_list
-  
-    def create_tf_idf_matrix(self):
-        """
-        Create tf(term-frequency) vector - for each chunk, count how often each word appears ÷ total words in chunk
-        Create idf(inverse document frequency) vector - log(total_chunks / chunks_containing_term) — penalises common words
-        """
-        tokenized_chunks: list[list[str]] = []
-        for chunk in self.chunks:
-            words = [w.lower() for w in re.split(r'\s+', chunk) if w]
-            tokenized_chunks.append(words)
-
-        tf_matrix_list: list[list[float]] = []
-        for words in tokenized_chunks:
-            total_words_in_chunk = len(words)
-
-            if total_words_in_chunk == 0:
-                current_chunk_tf = [0.0]*len(self.vocab_list)
-                tf_matrix_list.append(current_chunk_tf)
-                continue
-
-            local_counts: dict[str,int] = {}
-            for word in words:
-                local_counts[word] = local_counts.get(word, 0) + 1
-
-            current_chunk_tf: list[float] = []
-            for vocab_word in self.vocab_list:
-                word_count = local_counts.get(vocab_word, 0)
-                current_chunk_tf.append(word_count/total_words_in_chunk)
-
-            tf_matrix_list.append(current_chunk_tf)
-            
-        tf_matrix = np.array(tf_matrix_list, dtype=np.float64)
-
-        total_chunks = len(tokenized_chunks)
-        chunks_containing_term = np.sum(tf_matrix>0, axis=0)
-        self.idf_vector = np.log(total_chunks / (1 + chunks_containing_term))
-
-        self.tf_idf_matrix = tf_matrix * self.idf_vector
-        return self.tf_idf_matrix
 
     def build_matrices(self):
         """
@@ -143,7 +104,46 @@ class RAG:
         # We wrap in np.maximum(..., 1e-5) to prevent negative weights for incredibly common terms.
         bm25_idf = np.log((total_chunks - chunks_containing_term + 0.5) / (chunks_containing_term + 0.5) + 1.0)
         self.bm25_idf_vector = np.maximum(bm25_idf, 1e-5)
-        
+ 
+    def create_tf_idf_matrix(self):
+        """
+        Create tf(term-frequency) vector - for each chunk, count how often each word appears ÷ total words in chunk
+        Create idf(inverse document frequency) vector - log(total_chunks / chunks_containing_term) — penalises common words
+        """
+        tokenized_chunks: list[list[str]] = []
+        for chunk in self.chunks:
+            words = [w.lower() for w in re.split(r'\s+', chunk) if w]
+            tokenized_chunks.append(words)
+
+        tf_matrix_list: list[list[float]] = []
+        for words in tokenized_chunks:
+            total_words_in_chunk = len(words)
+
+            if total_words_in_chunk == 0:
+                current_chunk_tf = [0.0]*len(self.vocab_list)
+                tf_matrix_list.append(current_chunk_tf)
+                continue
+
+            local_counts: dict[str,int] = {}
+            for word in words:
+                local_counts[word] = local_counts.get(word, 0) + 1
+
+            current_chunk_tf: list[float] = []
+            for vocab_word in self.vocab_list:
+                word_count = local_counts.get(vocab_word, 0)
+                current_chunk_tf.append(word_count/total_words_in_chunk)
+
+            tf_matrix_list.append(current_chunk_tf)
+            
+        tf_matrix = np.array(tf_matrix_list, dtype=np.float64)
+
+        total_chunks = len(tokenized_chunks)
+        chunks_containing_term = np.sum(tf_matrix>0, axis=0)
+        self.idf_vector = np.log(total_chunks / (1 + chunks_containing_term))
+
+        self.tf_idf_matrix = tf_matrix * self.idf_vector
+        return self.tf_idf_matrix
+     
     def query_vectorization(self, query: str):
         """
         Transforms a runtime query string into an aligned 1D TF-IDF vector.
@@ -193,7 +193,7 @@ class RAG:
         
         return [(int(idx), float(similarities[idx])) for idx in ranked_indices[:top_k]]
     
-    def search_tfidf(self, query: str, top_k: int = 3) -> list[tuple[int, float]]:
+    def search_tf_idf(self, query: str, top_k: int = 3) -> list[tuple[int, float]]:
         query_words = [word.lower() for word in re.split(r'\s+', query) if word]
         total_words = len(query_words)
 
@@ -259,4 +259,5 @@ class RAG:
         self.create_chunks(chunk_size, overlap)
         self.create_vocab()
         self.build_matrices()
+        self.create_tf_idf_matrix()
         
